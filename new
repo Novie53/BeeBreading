@@ -406,16 +406,6 @@ function breedTarget(specificMutation, catalog, mutations, api, inv)
 		end
 		return newTable
 	end
-
-	for i,v in pairs(refrenseBeeTable) do
-		for a,d in pairs(v) do
-			log(i..":"..a..":"..tostring(d))
-		end
-	end
-	io.read()
-	
-	
-	
 	
 	log(specificMutation.beeOne.."+"..specificMutation.beeTwo.."="..specificMutation.result)
 
@@ -459,6 +449,8 @@ function breedTarget(specificMutation, catalog, mutations, api, inv)
 			creatRefrenseDrones(picked.beeDrone.beeInfo.active.species, inv, api)
 		end
 		
+		log(picked.beeDrone.slot)
+		io.read()
 		inv.pullItem("up", picked.beeDrone.slot, 1, 54)
 		picked.beeDrone.slot = 54
 	end
@@ -554,7 +546,7 @@ function MainRec(mutations, inv, targetSpecies, api)
 		
 		if config.BreedEverythingInPath then
 			for i= #stuffToBreed ,1 , -1 do
-				if stuffToBreed[i].beeOneAlreadyHave ~= 1 and stuffToBreed[i].beeTwoAlreadyHave ~= 1 then
+				if stuffToBreed[i].beeOneAlreadyHave == 1 and stuffToBreed[i].beeTwoAlreadyHave == 1 then
 					breedTarget(stuffToBreed[i], catalog, mutations, api, inv)
 				end
 			end	
