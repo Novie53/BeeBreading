@@ -217,6 +217,21 @@ function mutateBeeChance(mutations, princess, drone, targetSpecies)
              +mutateSpeciesChance(princess.beeInfo.active.species, drone.beeInfo.inactive.species) / 4
              +mutateSpeciesChance(princess.beeInfo.inactive.species, drone.beeInfo.inactive.species) / 4)
 end
+function findPureBreeds(catalog, specie)
+	local purePrin = {}
+	local pureDrone = {}
+	for ignore,v in pairs(catalog.princessesBySpecies[specie]) do
+		if isPureBreed(v) then
+			table.insert(purePrin, v)
+		end
+	end
+	for ignore,v in pairs(catalog.dronesBySpecies[specie]) do
+		if isPureBreed(v) then
+			table.insert(pureDrone, v)
+		end
+	end
+	return purePrin, pureDrone
+end
 
 
 function getBreedingTable(api)
@@ -320,18 +335,8 @@ function ensurePureBreed(inv, api, specie)
 			return
 		end
 		
-		local purePrin = {}
-		local pureDrone = {}
-		for ignore,v in pairs(catalog.princessesBySpecies[specie]) do
-			if isPureBreed(v) then
-				table.insert(purePrin, v)
-			end
-		end
-		for ignore,v in pairs(catalog.dronesBySpecies[specie]) do
-			if isPureBreed(v) then
-				table.insert(pureDrone, v)
-			end
-		end
+		local purePrin, pureDrone = findPureBreeds(catalog, specie)
+
 		if #purePrin == 0 or #pureDrone == 0 then
 			return
 		end
@@ -423,6 +428,10 @@ function breedTarget(specificMutation, catalog, mutations, api, inv)
 	
 	local highestTable = {}
 	local highest = 0
+	
+	log(#combinations) 
+	io.read()
+	
 	for ignore,table1 in pairs(combinations) do
 		local tempVal = mutateBeeChance(mutations, table1.beePrin, table1.beeDrone, specificMutation.result)
 		if tempVal > highest then
@@ -507,6 +516,7 @@ function getAllPossible(mutations, catalog, targetSpecies)
 		end
 	end
 	
+	
 	if #NewStack == 0 then
 		log(" -- Need more starter Bees -- ")
 		log(" -- Press ENTER when ready -- ")
@@ -533,19 +543,21 @@ function MainRec(mutations, inv, targetSpecies, api)
 	while not HaveRefPair(targetSpecies) do
 		local catalog = sortBees(inv)
 
-		
 		while count(catalog.dronesBySpecies) == 0 do
 			log(" -- Need more drones -- ")
 			log(" -- Press ENTER when ready -- ")
 			io.read()
+			catalog = sortBees(inv)
 		end
 		while count(catalog.princessesBySpecies) == 0 do
 			log(" -- Need more princesses -- ")
 			log(" -- Press ENTER when ready -- ")
 			io.read()
+			catalog = sortBees(inv)
 		end
 		
 		local stuffToBreed = getAllPossible(mutations, catalog, targetSpecies)
+		log(#stuffToBreed)
 		
 		if config.BreedEverythingInPath then
 			for i= #stuffToBreed ,1 , -1 do
@@ -642,6 +654,30 @@ function analyzeAllBees(inv)
 end
 
 
+function lookForNewRef(catalog, inv, api)
+	local speciesToCheck = {}
+	for specie, slot in pairs(catalog.princessesBySpecies) do
+		for slot, bee in pairs(slot) do
+			if isPureBreed(bee) and catalog.dronesBySpecies[specie] ~= nil then
+				speciesToCheck[specie] = false
+			end
+		end
+	end
+	
+	for specie, ignore in pairs(speciesToCheck) do
+		for slot, bee in pairs(catalog.dronesBySpecies[specie]) do
+			if isPureBreed(bee) then
+				speciesToCheck[specie] = true
+			end
+		end
+	end
+	
+	for specie, bool in pairs(speciesToCheck) do
+		if bool then
+			ensurePureBreed(inv, api, specie)
+		end
+	end
+end
 function cataLogRefChest(inv)
 	refrenseBeeTable = {}
 	log("Catalogging all refrenseBeePairs")
@@ -724,10 +760,11 @@ function main()
 	cataLogRefChest(inv)
 	clearApiary(apiary)
 	clearAnalyzer(inv)
-	sortBees(inv)
+	local catalog = sortBees(inv)
+	lookForNewRef(catalog, inv, apiary)
 	
 	log("Prep is finished")
-
+	io.read()
 	
 	if tArgs[1] == nil then
 		log("Enter a species to aim for")
