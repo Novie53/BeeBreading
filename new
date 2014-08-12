@@ -4,7 +4,7 @@ local config = {
 	["refChest"] = "up", --From the perspecive of the chest above the compuer
 	["refChestSize"] = 27,
 	["IgnoreCondition"] = true, 
-	["EnsureCount15"] = 0,
+	["EnsureCount15"] = 5, --Must be atleast 1
 	["DroneNumberDump"] = 10,
 	["BreedEverythingInPath"] = true,
 	["outputChest"] = "east"
@@ -332,13 +332,13 @@ function ensurePureBreed(inv, api, specie)
 		
 		if catalog.princessesBySpecies[specie] == nil or 
 			catalog.dronesBySpecies[specie] == nil then
-			return
+			return false
 		end
 		
 		local purePrin, pureDrone = findPureBreeds(catalog, specie)
 
 		if #purePrin == 0 or #pureDrone == 0 then
-			return
+			return false
 		end
 		
 		purePrin = purePrin[findBestBee(purePrin)]
@@ -350,6 +350,8 @@ function ensurePureBreed(inv, api, specie)
 			pureCount = 0
 		end
 	end
+	
+	return true
 end
 
 
@@ -457,7 +459,7 @@ function breedTarget(specificMutation, catalog, mutations, api, inv)
 		
 	FindAGoodName(api, picked.beePrin.slot, picked.beeDrone.slot)
 	
-	ensurePureBreed(inv, api, specificMutation.result)
+	lookForNewRef(inv, api)
 end
 function getAllPossible(mutations, catalog, targetSpecies)
 	local function oneLayer(target, tab)
@@ -639,11 +641,18 @@ function analyzeAllBees(inv)
 end
 
 
-function lookForNewRef(catalog, inv, api)
+function lookForNewRef(inv, api, cata)
+	local catalog
+	if cata == nil then
+		catalog = sortBees(inv)
+	else
+		catalog = cata
+	end
+	
 	local speciesToCheck = {}
 	for specie, slot in pairs(catalog.princessesBySpecies) do
 		for slot, bee in pairs(slot) do
-			if isPureBreed(bee) and catalog.dronesBySpecies[specie] ~= nil then
+			if isPureBreed(bee) and catalog.dronesBySpecies[specie] ~= nil and not HaveRefPair(specie) then
 				speciesToCheck[specie] = false
 			end
 		end
@@ -657,8 +666,7 @@ function lookForNewRef(catalog, inv, api)
 	end
 	
 	for specie, bool in pairs(speciesToCheck) do
-		if bool then
-			ensurePureBreed(inv, api, specie)
+		if bool and ensurePureBreed(inv, api, specie) then
 			local purePrin, pureDrone = findPureBreeds(catalog, specie)
 			
 			purePrin = purePrin[findBestBee(purePrin)]
@@ -760,7 +768,7 @@ function main()
 	clearApiary(apiary)
 	clearAnalyzer(inv)
 	local catalog = sortBees(inv)
-	lookForNewRef(catalog, inv, apiary)
+	lookForNewRef(inv, apiary, catalog)
 
 	log("Prep is finished")
 		
