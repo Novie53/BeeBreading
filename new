@@ -436,7 +436,7 @@ function breedTarget(specificMutation, catalog, mutations, api, inv)
 		end
 		
 		local highestScore = 0
-		for ignore, table1 in pairs(highesTable) do
+		for ignore, table1 in pairs(highestTable) do
 			if table1.score > highestScore then
 				highestScore = table1.score
 				picked = table1
@@ -618,7 +618,11 @@ function ditchDrones(inv)
 			if isBeeOrPrincess(bee) == 2 and -- The bee is a drone
 			beeList[bee.beeInfo.active.species] and -- Already have a refrense princess for the active species
 			beeList[bee.beeInfo.inactive.species] then -- Already have a refrense princess for the inactive species
-				inv.pushItem(config.ditchDir,slot)
+				while inv.pushItem(config.ditchDir,slot) == 0 do
+					log("DitchChest is full")
+					log("Fix it !!!!!!!!!!!!!!!!!")
+					io.read()
+				end
 			end
 		end
 	end
@@ -747,34 +751,36 @@ function sortBees(inv)
 	return catalogBees(inv)
 end
 
+function main()
+	local inv = peripheral.wrap("top")
+	local apiary = peripheral.wrap("left")
+	local mutationTable = getBreedingTable(apiary)
+	inv.size = inv.getInventorySize()
+	cataLogRefChest(inv)
+	clearApiary(apiary)
+	clearAnalyzer(inv)
+	local catalog = sortBees(inv)
+	lookForNewRef(catalog, inv, apiary)
 
+	log("Prep is finished")
+		
+	if tArgs[1] == nil then
+		log("Enter a species to aim for")
+		return
+	end
+	local targetSpecies = tArgs[1]:sub(1,1):upper()..tArgs[1]:sub(2):lower()
 
-local inv = peripheral.wrap("top")
-local apiary = peripheral.wrap("left")
-local mutationTable = getBreedingTable(apiary)
-inv.size = inv.getInventorySize()
-cataLogRefChest(inv)
-clearApiary(apiary)
-clearAnalyzer(inv)
-local catalog = sortBees(inv)
-lookForNewRef(catalog, inv, apiary)
-
-log("Prep is finished")
-	
-if tArgs[1] == nil then
-	log("Enter a species to aim for")
-	return
+	if beeList[targetSpecies] == nil then
+		log("Could not find a species with the name: "..targetSpecies)
+		return
+	elseif HaveRefPair(targetSpecies) then
+		log(string.format("There already is a purebreed %s in the refrense chest", targetSpecies))
+		return	
+	else
+		log("Main Target is "..targetSpecies)
+	end
+		
+	MainRec(mutationTable, inv, targetSpecies, apiary)
 end
-local targetSpecies = tArgs[1]:sub(1,1):upper()..tArgs[1]:sub(2):lower()
 
-if beeList[targetSpecies] == nil then
-	log("Could not find a species with the name: "..targetSpecies)
-	return
-elseif HaveRefPair(targetSpecies) then
-	log(string.format("There already is a purebreed %s in the refrense chest", targetSpecies))
-	return	
-else
-	log("Main Target is "..targetSpecies)
-end
-	
-MainRec(mutationTable, inv, targetSpecies, apiary)
+main()
