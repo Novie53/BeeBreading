@@ -719,9 +719,7 @@ function clearApiary(api)--Returns beeCount that was extracted,
 				if api.pushItem("up",slot) == 0 then
 					log("Error: MainChest is full")
 					log("Press [ENTER] When ready")
-					while api.pushItem("up",slot) == 0 do
-						io.read()
-					end
+					io.read()
 				else
 					beeCount = beeCount + 1
 				end
