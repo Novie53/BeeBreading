@@ -204,14 +204,14 @@ function mutateBeeChance(mutations, princess, drone, targetSpecies)
 		end
 		
 		for ignore,v in pairs(mutations[targetSpecies]) do
-			if (species1 == v.beeOne or species1 == v.beeTwo) and
-			(species2 == v.beeOne or species2 == v.beeTwo) then
+			if (species1 == v.beeOne and species2 == v.beeTwo) or
+			(species2 == v.beeOne and species1 == v.beeTwo) then
 				return v.chance
 			end
 		end
 		return 0
 	end
-	
+
 	return (mutateSpeciesChance(princess.beeInfo.active.species, drone.beeInfo.active.species) / 4
              +mutateSpeciesChance(princess.beeInfo.inactive.species, drone.beeInfo.active.species) / 4
              +mutateSpeciesChance(princess.beeInfo.active.species, drone.beeInfo.inactive.species) / 4
@@ -422,6 +422,8 @@ function breedTarget(specificMutation, catalog, mutations, api, inv)
 			highestTable = {}
 			highest = tempVal
 			table.insert(highestTable, table1)
+		elseif tempVal == highest then
+			table.insert(highestTable, table1)
 		end
 	end
 	
@@ -448,9 +450,7 @@ function breedTarget(specificMutation, catalog, mutations, api, inv)
 			log("Need to breed more Drones")
 			creatRefrenseDrones(picked.beeDrone.beeInfo.active.species, inv, api)
 		end
-		
-		log(picked.beeDrone.slot)
-		io.read()
+
 		inv.pullItem("up", picked.beeDrone.slot, 1, 54)
 		picked.beeDrone.slot = 54
 	end
@@ -663,6 +663,7 @@ function lookForNewRef(catalog, inv, api)
 			local oldPrinSlot = purePrin.slot
 			local oldDroneSlot = pureDrone.slot
 			
+			beeList[specie] = true
 			refrenseBeeTable[specie] = {}
 			refrenseBeeTable[specie]["prin"] = {}
 			refrenseBeeTable[specie]["prin"].beeData = inv.getStackInSlot(oldPrinSlot)
