@@ -1,0 +1,55 @@
+RefTable
+	Specie
+		prin
+			beeData
+				+bee
+				slot
+		drone
+			beeData
+				+bee
+				slot
+				ref
+catalog
+	
+beeList
+	specie = true/false
+bee
+	rawName
+	maxSize
+	dmg
+	qty
+	id
+	ench
+	name
+	maxdmg
+	beeInfo
+		canSpawn
+		hasEffect
+		generation
+		isSecret
+		ident
+		isIrregularMating
+		displayName
+		health
+		maxHealth
+		type
+		isNatural
+		isAlive
+		isAnalyzed
+		active/inactive
+			temperatureTolerance
+			effect
+			species
+			tolerantFlyer -- om den fungerar när det regnar
+			fertility -- fertility: 1-4 : hur många been man får per generation
+			flowering -- flowering: 5-99%(?) : hur ofta man får nya blommor och hur ofta träd mutererar
+			speed -- speed 0.3-1.7
+			caveDwelling -- om den behöver line of sight till himelen
+			humidityTolerance
+			nocturnal -- om den fungerar på natten
+			lifespan -- lifespan : 10-70
+			flowerProvider
+			territory
+				1
+				2
+				3
