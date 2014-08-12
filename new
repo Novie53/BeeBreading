@@ -4,7 +4,7 @@ local config = {
 	["refChest"] = "up", --From the perspecive of the chest above the compuer
 	["refChestSize"] = 27,
 	["IgnoreCondition"] = true, 
-	["EnsureCount15"] = 5, --Must be atleast 1
+	["EnsureCount15"] = 1, --Must be atleast 1
 	["DroneNumberDump"] = 10,
 	["BreedEverythingInPath"] = true,
 	["outputChest"] = "east"
@@ -667,6 +667,7 @@ function lookForNewRef(inv, api, cata)
 	
 	for specie, bool in pairs(speciesToCheck) do
 		if bool and ensurePureBreed(inv, api, specie) then
+			catalog = sortBees(inv)
 			local purePrin, pureDrone = findPureBreeds(catalog, specie)
 			
 			purePrin = purePrin[findBestBee(purePrin)]
@@ -769,7 +770,7 @@ function main()
 	clearAnalyzer(inv)
 	local catalog = sortBees(inv)
 	lookForNewRef(inv, apiary, catalog)
-
+	
 	log("Prep is finished")
 		
 	if tArgs[1] == nil then
