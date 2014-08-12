@@ -320,7 +320,7 @@ function creatRefrenseDrones(specie, inv, api)
 	anaLyzeBee(prinSlot, inv)
 	anaLyzeBee(droneSlot, inv)
 	
-	refrenseBeeTable[specie][2].beeData.qty = refrenseBeeTable[specie][2].beeData.qty + inv.getStackInSlot(droneSlot).qty - 1
+	refrenseBeeTable[specie]["drone"].beeData.qty = refrenseBeeTable[specie]["drone"].beeData.qty + inv.getStackInSlot(droneSlot).qty - 1
 	
 	returnRefPair(inv, specie, prinSlot, droneSlot)
 end
@@ -353,32 +353,19 @@ function ensurePureBreed(inv, api, specie)
 end
 
 
-
-
 function gettingRefDrone(inv, destiSlotDrone, count)--Todo
 
 
 
 end
 function gettingRefPair(inv, specie, droneCount, destiSlotPrin, destiSlotDrone)
-	inv.pullItem(config.refChest, refrenseBeeTable[specie][1].beeData.slot, 1, destiSlotPrin)
-	inv.pullItem(config.refChest, refrenseBeeTable[specie][2].beeData.slot, droneCount, destiSlotDrone)
+	inv.pullItem(config.refChest, refrenseBeeTable[specie]["prin"].beeData.slot, 1, destiSlotPrin)
+	inv.pullItem(config.refChest, refrenseBeeTable[specie]["drone"].beeData.slot, droneCount, destiSlotDrone)
 end
 function returnRefPair(inv, specie, prinSlot, droneSlot)
-	inv.pushItem(config.refChest, prinSlot, 64, refrenseBeeTable[specie][1].beeData.slot)
-	inv.pushItem(config.refChest, droneSlot, 64, refrenseBeeTable[specie][2].beeData.slot)
+	inv.pushItem(config.refChest, prinSlot, 64, refrenseBeeTable[specie]["prin"].beeData.slot)
+	inv.pushItem(config.refChest, droneSlot, 64, refrenseBeeTable[specie]["drone"].beeData.slot)
 end
-
-
-
-
-
-
-
-
-
-
-
 
 
 function breedTarget(specificMutation, catalog, mutations, api, inv)
@@ -675,6 +662,18 @@ function lookForNewRef(catalog, inv, api)
 	for specie, bool in pairs(speciesToCheck) do
 		if bool then
 			ensurePureBreed(inv, api, specie)
+			local purePrin, pureDrone = findPureBreeds(catalog, specie)
+			purePrin = purePrin[findBestBee(purePrin)]
+			pureDrone = pureDrone[findBestBee(pureDrone)]
+			
+			refrenseBeeTable[purePrin.beeInfo.active.species] = {}
+			refrenseBeeTable[purePrin.beeInfo.active.species]["prin"] = {}
+			refrenseBeeTable[purePrin.beeInfo.active.species]["prin"].beeData = purePrin
+			refrenseBeeTable[purePrin.beeInfo.active.species]["prin"].beeData.slot = i
+			refrenseBeeTable[purePrin.beeInfo.active.species]["drone"] = {}
+			refrenseBeeTable[purePrin.beeInfo.active.species]["drone"].beeData = pureDrone
+			refrenseBeeTable[purePrin.beeInfo.active.species]["drone"].beeData.slot = i
+			refrenseBeeTable[purePrin.beeInfo.active.species]["drone"].beeData.ref = true
 		end
 	end
 end
@@ -730,9 +729,7 @@ function clearApiary(api)--Returns beeCount that was extracted,
 				if api.pushItem(config.outputChest, slot) == 0 then
 					log("Error: OutputChest is full")
 					log("Press [ENTER] When ready")
-					while api.pushItem("down",slot) == 0 do
-						io.read()
-					end
+					io.read()
 				end
 			end
 		end
@@ -764,7 +761,6 @@ function main()
 	lookForNewRef(catalog, inv, apiary)
 	
 	log("Prep is finished")
-	io.read()
 	
 	if tArgs[1] == nil then
 		log("Enter a species to aim for")
