@@ -25,7 +25,7 @@ local traitPriority = {
 }
 local tArgs = {...}
 
-local refrenseBeeTable = {}
+local RefTable = {}
 local beeList = {}
 local inv = peripheral.wrap("top")
 local api = peripheral.wrap("left")
@@ -35,58 +35,7 @@ inv.size = inv.getInventorySize()
 
 
 
-function haveRecipe(targetSpecie)
-	if mutationTable[targetSpecie] == nil then
-		return false
-	else
-		return true
-	end
-end
-function isBeeOrPrincess(bee)--1=Prin,2=Drone,3 Rest
-	if bee.rawName == "item.beeprincessge" then
-		return 1
-	elseif bee.rawName == "item.beedronege" then
-		return 2
-	else
-		return 3
-	end
-end
-function isAnalyzed(bee)--True/False
-	return bee.beeInfo.isAnalyzed
-end
-function HaveRefPair(specie)--True/False, ifall man har redan den species som refrense
-	return beeList[specie]
-end
-function fixBeeName(name)
-	return name:gsub("bees%.species%.",""):gsub("^.", string.upper)
-end
-function isPureBreed(bee)--True/False
-	if bee.beeInfo.active.species == bee.beeInfo.inactive.species then
-		return true
-	else
-		return false
-	end
-end
-function alreadyHave(targetSpecie)--1:harRef, 2:harNågon, 3:false
-	if HaveRefPair(targetSpecie) then
-		return 1
-	elseif catalog.princessesBySpecies[targetSpecie] ~= nil or 
-		catalog.dronesBySpecies[targetSpecie] ~= nil then
-		return 2
-	else
-		return 3
-	end
-end
-function count(tab)
-	local count = 0
-	for i,v in pairs(tab) do count = count + 1 end
-	return count
-end
 
-
-function log(text)
-	print(tostring(text))
-end
 function printCompare(bee1, bee2)
 	shell.run("clear")
 	log("slot:"..bee1.slot.." - "..bee2.slot)
@@ -94,7 +43,6 @@ function printCompare(bee1, bee2)
 		log(i..":"..tostring(v).." - "..tostring(bee2.beeInfo.score[i]))	
 	end
 end
-
 
 function fixBee(bee)
 	if bee.beeInfo == nil then
@@ -149,7 +97,6 @@ function scoreBee(bee)
 		end
 	end
 	
-	log("Scoring bee in slot".. bee.slot)
 	local toleranceTable = {
 		["None"] = 0,
 		["Both 1"] = 2
@@ -244,42 +191,7 @@ function findPureBreeds(specie)
 end
 
 
-function getBreedingTable()
-	local function addToMuatationTable(mutTable, data, id)
-		if mutTable[data.result] == nil then
-			mutTable[data.result] = {}
-		end
-		local count = #mutTable[data.result]+1
-		
-		mutTable[data.result][count] = {}
-		mutTable[data.result][count].beeOne = data.allele1
-		mutTable[data.result][count].beeTwo = data.allele2
-		mutTable[data.result][count].chance = data.chance
-		mutTable[data.result][count].ID = id
-		mutTable[data.result][count].result = data.result
-		if #data["specialConditions"] > 0 then
-			mutTable[data.result][count].hasSpecialCondition = true
-			mutTable[data.result][count] = data.specialConditions
-		else
-			mutTable[data.result][count].hasSpecialCondition = false
-		end
-	end
-	
-	local mutationTable = {}
-	log("Sorting Breeding Table")
-	for id,v in pairs(api.getBeeBreedingData()) do
-	
-		v.allele1 = fixBeeName(v.allele1)
-		v.allele2 = fixBeeName(v.allele2)
-		v.result = fixBeeName(v.result)
-		
-		beeList[v.allele1] = false
-		beeList[v.allele2] = false
-		beeList[v.result] = false
-		addToMuatationTable(mutationTable, v, id)
-	end
-	return mutationTable
-end
+
 function FindAGoodName(princessSlot, droneSlot)
 	local function waitForTheApi()
 		log("Waiting for the apiary")
@@ -312,7 +224,7 @@ end
 function creatRefrenseDrones(specie)
 	log("Creating more Refrense Drones")
 	
-	gettingRefPair(inv, specie, 1, 53, 54)
+	getRefPair(specie, 1, 53, 54)
 	FindAGoodName(api,53,54)
 	
 	
@@ -330,7 +242,7 @@ function creatRefrenseDrones(specie)
 	anaLyzeBee(prinSlot, inv)
 	anaLyzeBee(droneSlot, inv)
 	
-	refrenseBeeTable[specie]["drone"].beeData.qty = refrenseBeeTable[specie]["drone"].beeData.qty + inv.getStackInSlot(droneSlot).qty - 1
+	RefTable[specie]["drone"].beeData.qty = RefTable[specie]["drone"].beeData.qty + inv.getStackInSlot(droneSlot).qty - 1
 	
 	returnRefPair(inv, specie, prinSlot, droneSlot)
 end
@@ -365,18 +277,23 @@ function ensurePureBreed(specie)
 end
 
 
-function gettingRefDrone(specie, destiSlotDrone, droneCount)--Todo
+function getRefDrone(specie, destiSlotDrone, droneCount)--Todo
+	log("Grabbing a refrenseDrone, "..picked.beeDrone.beeInfo.active.species)
 
-
-
+inv.pullItem("up", picked.beeDrone.slot, 1, 27)
+	
+	while picked.beeDrone.qty == 1 do
+		log("Need to breed more Drones")
+		creatRefrenseDrones(picked.beeDrone.beeInfo.active.species)
+	end
 end
-function gettingRefPair(specie, droneCount, destiSlotPrin, destiSlotDrone)
-	inv.pullItem(config.refChest, refrenseBeeTable[specie]["prin"].beeData.slot, 1, destiSlotPrin)
-	inv.pullItem(config.refChest, refrenseBeeTable[specie]["drone"].beeData.slot, droneCount, destiSlotDrone)
+function getRefPair(specie, droneCount, destiSlotPrin, destiSlotDrone)
+	inv.pullItem(config.refChest, RefTable[specie]["prin"].beeData.slot, 1, destiSlotPrin)
+	inv.pullItem(config.refChest, RefTable[specie]["drone"].beeData.slot, droneCount, destiSlotDrone)
 end
 function returnRefPair(specie, prinSlot, droneSlot)
-	inv.pushItem(config.refChest, prinSlot, 64, refrenseBeeTable[specie]["prin"].beeData.slot)
-	inv.pushItem(config.refChest, droneSlot, 64, refrenseBeeTable[specie]["drone"].beeData.slot)
+	inv.pushItem(config.refChest, prinSlot, 64, RefTable[specie]["prin"].beeData.slot)
+	inv.pushItem(config.refChest, droneSlot, 64, RefTable[specie]["drone"].beeData.slot)
 end
 
 
@@ -384,18 +301,12 @@ function breedTarget(specificMutation)
 	local function containsAtleastOneSpecie(searthTable)
 		local newTable = {}
 		for specie,table1 in pairs(searthTable) do
-			if specie == specificMutation.beeOne or 
-			specie == specificMutation.beeTwo or
-			specie == specificMutation.result then
+			if specie == specificMutation.beeOne or specie == specificMutation.beeTwo or specie == specificMutation.result then
 				for ignore,v in pairs(table1) do
-					local found = false					
+					local found = false
 					for a,d in pairs(newTable) do
 						if d.slot == v.slot then
-							if d.ref == nil and v.ref == nil then
-								found = true
-							elseif d.ref == v.ref then
-								found = true
-							end
+							found = true
 						end
 					end
 					if not found then
@@ -421,15 +332,20 @@ function breedTarget(specificMutation)
 	
 	log(specificMutation.beeOne.."+"..specificMutation.beeTwo.."="..specificMutation.result)
 
-	local combinations = crossMatch(containsAtleastOneSpecie(catalog.princessesBySpecies), 
-									containsAtleastOneSpecie(catalog.dronesBySpecies))
-	
+	local prinTa = containsAtleastOneSpecie(catalog.princessesBySpecies)
+	local droneTa = containsAtleastOneSpecie(catalog.dronesBySpecies)
+	local combinations = crossMatch(prinTa, droneTa)
 	
 	local highestTable = {}
 	local highest = 0
 	
 	for ignore,table1 in pairs(combinations) do
-		local tempVal = mutateBeeChance(mutations, table1.beePrin, table1.beeDrone, specificMutation.result)
+		local tempVal = mutateBeeChance(table1.beePrin, table1.beeDrone, specificMutation.result)
+		log(string.format("Prin:%s-%s, Drone:%s-%s, Chance:",string.sub(table1.beePrin.beeInfo.active.species,0,3),
+															 string.sub(table1.beePrin.beeInfo.inactive.species,0,3),
+															 string.sub(table1.beeDrone.beeInfo.active.species,0,3),
+															 string.sub(table1.beeDrone.beeInfo.inactive.species,0,3))
+															 ..tempVal, true)
 		if tempVal > highest then
 			highestTable = {}
 			highest = tempVal
@@ -438,6 +354,7 @@ function breedTarget(specificMutation)
 			table.insert(highestTable, table1)
 		end
 	end
+	log("Highest chance to get "..specificMutation.result.." is "..highest.."%")	
 	
 	local picked = highestTable[1]
 	if #highestTable > 1 then
@@ -457,24 +374,18 @@ function breedTarget(specificMutation)
 	end
 	
 	if picked.beeDrone.ref then
-		log("Grabbing a refrenseDrone, "..picked.beeDrone.beeInfo.active.species)
-		while picked.beeDrone.qty == 1 do
-			log("Need to breed more Drones")
-			creatRefrenseDrones(picked.beeDrone.beeInfo.active.species, inv, api)
-		end
-		
 		inv.swapStacks(27,54)
-		inv.pullItem("up", picked.beeDrone.slot, 1, 27)
+		getRefDrone(picked.beeDrone.beeInfo.active.species, 27, 1)
 		picked.beeDrone.slot = 27
 	end
 		
-	FindAGoodName(api, picked.beePrin.slot, picked.beeDrone.slot)
-	
-	lookForNewRef(inv, api)
+	FindAGoodName(picked.beePrin.slot, picked.beeDrone.slot)
+	catalogBees()
+	lookForNewRef()
 end
 function getAllPossible(targetSpecies)
 	local function oneLayer(target, tab)
-		for ignore,v in pairs(mutations[target]) do
+		for ignore,v in pairs(mutationTable[target]) do
 			if not (config.IgnoreCondition and v.hasSpecialCondition) then
 				table.insert(tab, v)
 			end
@@ -488,18 +399,18 @@ function getAllPossible(targetSpecies)
 	oneLayer(targetSpecies, stack)
 	while #stack > 0 do
 		for i,v in pairs(stack) do
-			v.beeOneCanBreed = haveRecipe(mutations, v.beeOne)
-			v.beeTwoCanBreed = haveRecipe(mutations, v.beeTwo)
-			v.beeOneAlreadyHave = alreadyHave(catalog, v.beeOne)
-			v.beeTwoAlreadyHave = alreadyHave(catalog, v.beeTwo)
+			v.beeOneHaveRecipe = haveRecipe(v.beeOne)
+			v.beeTwoHaveRecipe = haveRecipe(v.beeTwo)
+			v.beeOneAlreadyHave = alreadyHave(v.beeOne)
+			v.beeTwoAlreadyHave = alreadyHave(v.beeTwo)
 		end
 		
 		for i,v in pairs(stack) do
 			
-			if v.beeOneCanBreed then
+			if v.beeOneHaveRecipe then
 				oneLayer(v.beeOne, NewStack)
 			end
-			if v.beeTwoCanBreed then
+			if v.beeTwoHaveRecipe then
 				oneLayer(v.beeTwo, NewStack)
 			end
 		end
@@ -507,23 +418,6 @@ function getAllPossible(targetSpecies)
 		stack = NewStack
 		NewStack = {}
 	end
-	
-	for i=1,#processed do
-		if (processed[i].beeOneAlreadyHave ~= 3 or processed[i].beeOneCanBreed) 
-		and (processed[i].beeTwoAlreadyHave ~= 3 or processed[i].beeTwoCanBreed) then
-			table.insert(NewStack, processed[i])
-		end
-	end
-	
-	
-	if #NewStack == 0 then
-		log(" -- Need more starter Bees -- ")
-		log(" -- Press ENTER when ready -- ")
-		io.read()
-	end
-	
-	processed = NewStack
-	NewStack = {}
 	
 	local alreadyHave = false
 	for i=1,#processed do
@@ -536,41 +430,105 @@ function getAllPossible(targetSpecies)
 			table.insert(NewStack, processed[i])
 		end
 	end
+	processed = NewStack
+	NewStack = {}
+	
+	
+	for i=1,#processed do
+		if (processed[i].beeOneAlreadyHave ~= 3 or processed[i].beeOneHaveRecipe) 
+		and (processed[i].beeTwoAlreadyHave ~= 3 or processed[i].beeTwoHaveRecipe)
+		and not HaveRefPair(processed[i].result) then
+			table.insert(NewStack, processed[i])
+		end
+	end
+	
+	if #NewStack == 0 then
+		log(" -- Need more starter Bees -- ")
+		log(" -- Press ENTER when ready -- ")
+		io.read()
+	end
+	
 	return NewStack
 end
 function MainRec(targetSpecies)
 	while not HaveRefPair(targetSpecies) do
-		sortBees()
-
-		while count(catalog.dronesBySpecies) == 0 do
-			log(" -- Need more drones -- ")
-			log(" -- Press ENTER when ready -- ")
-			io.read()
-			sortBees()
-		end
-		while count(catalog.princessesBySpecies) == 0 do
-			log(" -- Need more princesses -- ")
-			log(" -- Press ENTER when ready -- ")
-			io.read()
-			sortBees()
-		end
-		
-		local stuffToBreed = getAllPossible(mutations, catalog, targetSpecies)
+		local stuffToBreed = getAllPossible(targetSpecies)
 		
 		if config.BreedEverythingInPath then
 			for i= #stuffToBreed ,1 , -1 do
-				if stuffToBreed[i].beeOneAlreadyHave == 1 and stuffToBreed[i].beeTwoAlreadyHave == 1 then
-					breedTarget(stuffToBreed[i], catalog, mutations, api, inv)
-				end
+				breedTarget(stuffToBreed[i])
 			end	
 		else
-			for ignore,v in pairs(stuffToBreed) do
-				if v.beeOneState == 3 and v.beeTwoState == 3 then
-					breedTarget(v, catalog, mutations, api, inv)
-				end
-			end
+			log("Todo")
+			io.read()
 		end
+		
+		sortBees()
 	end
+end
+
+
+
+
+
+
+
+
+
+
+
+function log(text, bool)
+	if not bool then
+		print(tostring(text))
+	end
+end
+
+function haveRecipe(targetSpecie)
+	if mutationTable[targetSpecie] == nil then
+		return false
+	else
+		return true
+	end
+end
+function isBeeOrPrincess(bee)--1=Prin,2=Drone,3 Rest
+	if bee.rawName == "item.beeprincessge" then
+		return 1
+	elseif bee.rawName == "item.beedronege" then
+		return 2
+	else
+		return 3
+	end
+end
+function isAnalyzed(bee)--True/False
+	return bee.beeInfo.isAnalyzed
+end
+function HaveRefPair(specie)--True/False, ifall man har redan den species som refrense
+	return beeList[specie]
+end
+function fixBeeName(name)
+	return name:gsub("bees%.species%.",""):gsub("^.", string.upper)
+end
+function isPureBreed(bee)--True/False
+	if bee.beeInfo.active.species == bee.beeInfo.inactive.species then
+		return true
+	else
+		return false
+	end
+end
+function alreadyHave(targetSpecie)--1:harRef, 2:harNågon, 3:false
+	if HaveRefPair(targetSpecie) then
+		return 1
+	elseif catalog.princessesBySpecies[targetSpecie] ~= nil or 
+		catalog.dronesBySpecies[targetSpecie] ~= nil then
+		return 2
+	else
+		return 3
+	end
+end
+function count(tab)
+	local count = 0
+	for i,v in pairs(tab) do count = count + 1 end
+	return count
 end
 
 
@@ -607,7 +565,7 @@ function catalogBees()
 	catalog.princessesBySpecies = {}
 	catalog.dronesBySpecies = {}
 		
-	for specie, beePair in pairs(refrenseBeeTable) do	
+	for specie, beePair in pairs(RefTable) do	
 		addBySpecies(catalog.dronesBySpecies, beePair["drone"].beeData)
 	end
 	
@@ -623,59 +581,49 @@ function catalogBees()
 		end
 	end
 end
-function ditchDrones()
-	if config.DroneNumberDump > (inv.size - #inv.getAllStacks()) then
-		log("Ditching obsolete Drones")
-		for slot, bee in pairs(inv.getAllStacks()) do		
-			if isBeeOrPrincess(bee) == 2 and -- The bee is a drone
-			beeList[bee.beeInfo.active.species] and -- Already have a refrense princess for the active species
-			beeList[bee.beeInfo.inactive.species] then -- Already have a refrense princess for the inactive species
-				while inv.pushItem(config.ditchDir,slot) == 0 do
-					log("DitchChest is full")
-					log("Fix it !!!!!!!!!!!!!!!!!")
-					io.read()
-				end
-			end
-		end
-	end
-end
-function analyzeAllBees()
-	log("Analyzing Bees")
-	inv.condenseItems()
-	for i,v in pairs(inv.getAllStacks()) do
-		if not isAnalyzed(v) then
-			anaLyzeBee(i, inv)
-		end
-	end
-	inv.condenseItems()
-end
 
 
-function addToRef(beePrin, beeDrone)
-	local specie = beePrin.beeInfo.active.species
-	local oldPrinSlot = purePrin.slot
-	local oldDroneSlot = pureDrone.slot
+function getBreedingTable()
+	local function addToMuatationTable(mutTable, data, id)
+		if mutTable[data.result] == nil then
+			mutTable[data.result] = {}
+		end
+		local count = #mutTable[data.result]+1
+		
+		mutTable[data.result][count] = {}
+		mutTable[data.result][count].beeOne = data.allele1
+		mutTable[data.result][count].beeTwo = data.allele2
+		mutTable[data.result][count].chance = data.chance
+		mutTable[data.result][count].ID = id
+		mutTable[data.result][count].result = data.result
+		if #data["specialConditions"] > 0 then
+			mutTable[data.result][count].hasSpecialCondition = true
+			mutTable[data.result][count] = data.specialConditions
+		else
+			mutTable[data.result][count].hasSpecialCondition = false
+		end
+	end
 	
-	beeList[specie] = true
-	refrenseBeeTable[specie] = {}
-	refrenseBeeTable[specie]["prin"] = {}
-	refrenseBeeTable[specie]["drone"] = {}
+	local mutationTable = {}
+	log("Sorting Breeding Table")
+	for id,v in pairs(api.getBeeBreedingData()) do
 	
-	refrenseBeeTable[specie]["prin"].beeData = beePrin
-	refrenseBeeTable[specie]["prin"].beeData.slot = count(refrenseBeeTable)*2-1
-	
-	refrenseBeeTable[specie]["drone"].beeData = beeDrone
-	refrenseBeeTable[specie]["drone"].beeData.slot = count(refrenseBeeTable)*2
-	refrenseBeeTable[specie]["drone"].beeData.ref = true
-	
-	inv.pushItem(config.refChest, oldPrinSlot, 64, refrenseBeeTable[specie]["prin"].beeData.slot)
-	inv.pushItem(config.refChest, oldDroneSlot, 64, refrenseBeeTable[specie]["drone"].beeData.slot)
+		v.allele1 = fixBeeName(v.allele1)
+		v.allele2 = fixBeeName(v.allele2)
+		v.result = fixBeeName(v.result)
+		
+		beeList[v.allele1] = false
+		beeList[v.allele2] = false
+		beeList[v.result] = false
+		addToMuatationTable(mutationTable, v, id)
+	end
+	return mutationTable
 end
 function lookForNewRef()
 	local speciesToCheck = {}
 	log("Looking for new Refrense Pair")
 	for specie, tab in pairs(catalog.princessesBySpecies) do
-		for slot, bee in pairs(tab) do
+		for ignore, bee in pairs(tab) do
 			if isPureBreed(bee) and catalog.dronesBySpecies[specie] ~= nil and not HaveRefPair(specie) then
 				speciesToCheck[specie] = false
 			end
@@ -708,25 +656,38 @@ function lookForNewRef()
 		end
 	end
 end
-function cataLogRefChest()
-	refrenseBeeTable = {}
-	log("Catalogging all refrenseBeePairs")
-	for i=1, config.refChestSize, 2 do
-		if inv.pullItem(config.refChest, i, 64, inv.size-1) == 0 then break end
-		inv.pullItem(config.refChest, i+1, 64, inv.size)
-		
-		local prin = inv.getStackInSlot(inv.size-1)
-		local drone = inv.getStackInSlot(inv.size)
-		prin.slot = inv.size - 1
-		drone.slot = inv.size
-		
-		if not isPureBreed(prin) and isPureBreed(drone) then
-			log("Error: Current RefPair in slot:"..prin.slot..","..drone.slot.." is not purebreed")
-			io.read()
-			return
+function sortBees()
+	local function ditchDrones()
+		if config.DroneNumberDump > (inv.size - #inv.getAllStacks()) then
+			log("Ditching obsolete Drones")
+			for slot, bee in pairs(inv.getAllStacks()) do		
+				if isBeeOrPrincess(bee) == 2 and -- The bee is a drone
+				HaveRefPair(bee.beeInfo.active.species) and -- Already have a refrense princess for the active species
+				HaveRefPair(bee.beeInfo.inactive.species) then -- Already have a refrense princess for the inactive species
+					while inv.pushItem(config.ditchDir,slot) == 0 do
+						log("DitchChest is full")
+						log("Fix it !!!!!!!!!!!!!!!!!")
+						io.read()
+					end
+				end
+			end
 		end
-		addToRef(prin, drone)
 	end
+	local function analyzeAllBees()
+		log("Analyzing Bees")
+		inv.condenseItems()
+		for i,v in pairs(inv.getAllStacks()) do
+			if not isAnalyzed(v) then
+				anaLyzeBee(i, inv)
+			end
+		end
+		inv.condenseItems()
+	end
+	
+	log("Sorting Bees")
+	analyzeAllBees()
+	ditchDrones()
+	catalogBees()
 end
 function clearApiary()--Returns beeCount that was extracted, 
 	-- 1:Princess Slot
@@ -763,31 +724,77 @@ function clearAnalyzer()
 		inv.pullItem(config.analyzerDir, i)
 	end
 end
-function sortBees()
-	log("Sorting Bees")
-	analyzeAllBees()
-	ditchDrones()
-	catalogBees()
+function addToRef(beePrin, beeDrone)
+	local specie = beePrin.beeInfo.active.species
+	local oldPrinSlot = beePrin.slot
+	local oldDroneSlot = beeDrone.slot
+	log("Adding "..specie.." to the refTable")
+	
+	beeList[specie] = true
+	RefTable[specie] = {}
+	RefTable[specie]["prin"] = {}
+	RefTable[specie]["drone"] = {}
+	
+	RefTable[specie]["prin"].beeData = beePrin
+	RefTable[specie]["prin"].beeData.slot = count(RefTable)*2-1
+	
+	RefTable[specie]["drone"].beeData = beeDrone
+	RefTable[specie]["drone"].beeData.slot = count(RefTable)*2
+	RefTable[specie]["drone"].beeData.ref = true
+	
+	inv.pushItem(config.refChest, oldPrinSlot, 64, RefTable[specie]["prin"].beeData.slot)
+	inv.pushItem(config.refChest, oldDroneSlot, 64, RefTable[specie]["drone"].beeData.slot)
+end
+function cataLogRefChest()
+	RefTable = {}
+	log("Catalogging all refrenseBeePairs")
+	for i=2, config.refChestSize, 2 do
+		if inv.pullItem(config.refChest, i, 64, inv.size) == 0 then break end
+		inv.pullItem(config.refChest, i-1, 64, inv.size-1)
+		
+		local prin = inv.getStackInSlot(inv.size-1)
+		local drone = inv.getStackInSlot(inv.size)
+		prin.slot = inv.size-1
+		drone.slot = inv.size
+		
+		if not isPureBreed(prin) and isPureBreed(drone) then
+			log("Error: Current RefPair in slot:"..prin.slot..","..drone.slot.." is not purebreed")
+			io.read()
+			return
+		end
+		addToRef(prin, drone)
+	end
 end
 
 
-
 function main()
+	mutationTable = getBreedingTable()
 	cataLogRefChest()
 	clearApiary()
 	clearAnalyzer()
-
-	mutationTable = getBreedingTable()
 	sortBees()
-
 	lookForNewRef()
 	
-	log("Prep is finished")
-		
+	log("Prep is finished")	
 	if tArgs[1] == nil then
 		log("Enter a species to aim for")
 		return
 	end
+	
+	
+	while count(catalog.dronesBySpecies) == 0 do
+		log(" -- Need more drones -- ")
+		log(" -- Press ENTER when ready -- ")
+		io.read()
+		sortBees()
+	end
+	while count(catalog.princessesBySpecies) == 0 do
+		log(" -- Need more princesses -- ")
+		log(" -- Press ENTER when ready -- ")
+		io.read()
+		sortBees()
+	end
+	
 	local targetSpecies = tArgs[1]:sub(1,1):upper()..tArgs[1]:sub(2):lower()
 
 	if beeList[targetSpecies] == nil then
@@ -800,7 +807,7 @@ function main()
 		log("Main Target is "..targetSpecies)
 	end
 		
-	MainRec(mutationTable, inv, targetSpecies, apiary)
+	MainRec(targetSpecies)
 end
 
 

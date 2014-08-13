@@ -9,8 +9,23 @@ RefTable
 				+bee
 				slot
 				ref
+				
+mutationTable
+	ResultSpecie
+		number
+			beeOne:Specie
+			beeTwo:Specie
+			hasSpecialCondition:true false
+			mutationID:numb
+			resultSpecie:Specie
+			chance:numb
 catalog
-	
+	princessesBySpecies
+		Specie
+			+Bee
+	dronesBySpecies
+		Specie
+			+Bee
 beeList
 	specie = true/false
 bee
