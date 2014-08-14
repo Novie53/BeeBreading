@@ -102,10 +102,12 @@ function fixBee(bee)
 end
 function findFreeSlot()
 	local slot = 1
-	for invSlot, tab in pairs(inv.getAllStacks()) do
-		slot = invSlot + 1
+	local asd = inv.getAllStacks()
+	if count(asd) == 0 then return 1 end
+	
+	for i=1, inv.size do
+		if asd[i] == nil then return i end
 	end
-	return slot
 end
 
 
@@ -122,7 +124,7 @@ function clearApiary()-- Returns beeCount, beeSlot that was extracted
 		if inv[slot] then
 			if isBeeOrPrincess(inv[slot]) ~= 3 then
 				local invSlot = findFreeSlot()
-				if api.pushItem("up", slot, 64, invSlot) == 0 then
+				if api.pushItem(config.refChest, slot, 64, invSlot) == 0 then
 					log("Error: MainChest is full")
 					log("Press [ENTER] When ready")
 					io.read()
@@ -574,9 +576,6 @@ function reBreedQueen(specie)
 		end
 	end
 end
-
---[[   ]]
-
 function ensurePureBreed(specie)
 	local pureCount = 0
 	while pureCount < config.EnsureCount15 do
@@ -803,7 +802,6 @@ function main()
 	clearAnalyzer()
 	sortBees()
 	lookForNewRef()
-	--[[
 	
 	log("Prep is finished")	
 	if tArgs[1] == nil then
@@ -824,7 +822,6 @@ function main()
 	end
 	
 	MainRec(targetSpecies)
-	]]
 end
 
 main()
