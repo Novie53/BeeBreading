@@ -2,10 +2,10 @@ local config = {
     ["analyzerDir"] = "west", --From the perspecive of the chest above the compuer
 	["ditchDir"] = "south",	--From the perspecive of the chest above the compuer
 	["refChest"] = "up", --From the perspecive of the chest above the compuer
-	["refChestSize"] = 27,
+	["refChestSize"] = 81,
 	["IgnoreCondition"] = true, 
-	["EnsureCount15"] = 1, --Must be atleast 1
-	["DroneNumberDump"] = 10,
+	["EnsureCount15"] = 5, --Must be atleast 1
+	["DroneNumberDump"] = 100,
 	["BreedEverythingInPath"] = true,
 	["outputChest"] = "east"
 }
@@ -44,6 +44,8 @@ function getRefDrone(specie, destiSlotDrone, droneCount)--Todo
 end
 function creatRefrenseDrones(specie)
 	log("Creating more Refrense Drones")
+	
+	
 	
 	getRefPair(specie, 1, 53, 54)
 	FindAGoodName(53, 54)
@@ -218,6 +220,10 @@ function catalogBees()
 		end
 	end
 end
+
+--Todo Göra det mer modulärt genom att man hittar en fri slot och arbetar runt den istället för att alltid försöka att arbeta runt sista slott
+--Todo kolla ifall FindAGoodName returnar alla slot som den har skicka en ny bee till så man inte behöver använda hacken och söka igenom inv för bee som inte är analyzerade
+
 
 
 function findPureBreeds(specie)
@@ -431,9 +437,10 @@ function lookForNewRef()
 end
 function sortBees()
 	local function ditchDrones()
+		log("Ditching obsolete Drones")
 		if config.DroneNumberDump > (inv.size - #inv.getAllStacks()) then
-			log("Ditching obsolete Drones")
-			for slot, bee in pairs(inv.getAllStacks()) do		
+			for slot, bee in pairs(inv.getAllStacks()) do
+				fixBee(bee)
 				if isBeeOrPrincess(bee) == 2 and -- The bee is a drone
 				HaveRefPair(bee.beeInfo.active.species) and -- Already have a refrense princess for the active species
 				HaveRefPair(bee.beeInfo.inactive.species) then -- Already have a refrense princess for the inactive species
@@ -451,7 +458,7 @@ function sortBees()
 		inv.condenseItems()
 		for i,v in pairs(inv.getAllStacks()) do
 			if not isAnalyzed(v) then
-				anaLyzeBee(i, inv)
+				anaLyzeBee(i)
 			end
 		end
 		inv.condenseItems()
@@ -521,14 +528,24 @@ end
 function cataLogRefChest()
 	RefTable = {}
 	log("Catalogging all refrenseBeePairs")
+	
+	if inv.getStackInSlot(27) ~= nil then
+		inv.swapStacks(27, inv.size)
+	end
+	if inv.getStackInSlot(26) ~= nil then
+		inv.swapStacks(26, inv.size-1)
+	end
+	
 	for i=2, config.refChestSize, 2 do
-		if inv.pullItem(config.refChest, i, 64, inv.size) == 0 then break end
-		inv.pullItem(config.refChest, i-1, 64, inv.size-1)
+		if inv.pullItem(config.refChest, i, 64, 27) == 0 then break end
+		inv.pullItem(config.refChest, i-1, 64, 26)
 		
-		local prin = inv.getStackInSlot(inv.size-1)
-		local drone = inv.getStackInSlot(inv.size)
-		prin.slot = inv.size-1
-		drone.slot = inv.size
+		local prin = inv.getStackInSlot(26)
+		local drone = inv.getStackInSlot(27)
+		fixBee(prin)
+		fixBee(drone)
+		prin.slot = 26
+		drone.slot = 27
 		
 		if not isPureBreed(prin) and isPureBreed(drone) then
 			log("Error: Current RefPair in slot:"..prin.slot..","..drone.slot.." is not purebreed")
@@ -540,6 +557,32 @@ function cataLogRefChest()
 end
 
 
+function reBreedQueen(specie)
+	log("Need to breed a queen to match the recipe, "..specie)
+	local prin
+	for i,v in pairs(catalog.princessesBySpecies) do
+		for a,d in pairs(v) do
+			prin = d
+			break
+		end
+	end
+	
+	while not isPureBreed(prin) and prin.beeInfo.active.species == specie do
+		if inv.getStackInSlot(27) ~= nil then
+			inv.swapStacks(27, inv.size)
+		end
+		getRefDrone(specie, 27, 1)
+		FindAGoodName(prinSlot, 27)
+		
+		for i,v in pairs(inv.getAllStacks()) do
+			if not isAnalyzed(v) then
+				if isBeeOrPrincess(v) == 1 then --Prin
+					prinSlot = i
+				end
+			end
+		end
+	end
+end
 function ensurePureBreed(specie)
 	local pureCount = 0
 	while pureCount < config.EnsureCount15 do
@@ -602,6 +645,12 @@ function breedTarget(specificMutation)
 		log(specificMutation.beeOne.."+"..specificMutation.beeTwo.."="..specificMutation.result)
 
 		local prinTa = containsAtleastOneSpecie(catalog.princessesBySpecies)
+		
+		if count(prinTa) == 0 then
+			reBreedQueen(specificMutation.beeOne)
+			prinTa = containsAtleastOneSpecie(catalog.princessesBySpecies)
+		end
+		
 		local droneTa = containsAtleastOneSpecie(catalog.dronesBySpecies)
 		local combinations = crossMatch(prinTa, droneTa)
 		
@@ -643,7 +692,9 @@ function breedTarget(specificMutation)
 		end
 		
 		if picked.beeDrone.ref then
-			inv.swapStacks(27,54)
+			if inv.getStackInSlot(27) ~= nil then
+				inv.swapStacks(27, inv.size)
+			end
 			getRefDrone(picked.beeDrone.beeInfo.active.species, 27, 1)
 			picked.beeDrone.slot = 27
 		end
@@ -725,21 +776,27 @@ function MainRec(targetSpecies)
 	local stuffToBreed = getAllPossible(targetSpecies)
 	
 	if config.BreedEverythingInPath then
-		for i= #stuffToBreed ,1 , -1 do
-			while count(catalog.dronesBySpecies) == 0 do
-				log(" -- Need more drones -- ")
-				log(" -- Press ENTER when ready -- ")
-				io.read()
-				sortBees()
+		while count(stuffToBreed) ~= 0 do
+			for ignore, table1 in pairs(stuffToBreed) do
+				while count(catalog.dronesBySpecies) == 0 do
+					log(" -- Need more drones -- ")
+					log(" -- Press ENTER when ready -- ")
+					io.read()
+					sortBees()
+				end
+				while count(catalog.princessesBySpecies) == 0 do
+					log(" -- Need more princesses -- ")
+					log(" -- Press ENTER when ready -- ")
+					io.read()
+					sortBees()
+				end
+				
+				if HaveRefPair(table1.beeOne) and HaveRefPair(table1.beeTwo) then
+					breedTarget(table1)
+					table.remove(stuffToBreed, ignore)
+				end
 			end
-			while count(catalog.princessesBySpecies) == 0 do
-				log(" -- Need more princesses -- ")
-				log(" -- Press ENTER when ready -- ")
-				io.read()
-				sortBees()
-			end
-			breedTarget(stuffToBreed[i])
-		end	
+		end
 	else
 		log("Todo")
 		io.read()
@@ -760,10 +817,6 @@ function main()
 		log("Enter a species to aim for")
 		return
 	end
-	
-	
-	getRefDrone("Noble", 48, 1)
-	io.read()
 	
 	local targetSpecies = tArgs[1]:sub(1,1):upper()..tArgs[1]:sub(2):lower()
 
