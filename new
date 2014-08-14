@@ -2,7 +2,7 @@ local config = {
     ["analyzerDir"] = "west", --From the perspecive of the chest above the compuer
 	["ditchDir"] = "south",	--From the perspecive of the chest above the compuer
 	["refChest"] = "up", --From the perspecive of the chest above the compuer
-	["refChestSize"] = 81,
+	["refChestSize"] = 108,
 	["IgnoreCondition"] = true, 
 	["EnsureCount15"] = 5, --Must be atleast 1
 	["DroneNumberDump"] = 100,
@@ -33,48 +33,16 @@ local mutationTable
 local catalog
 inv.size = inv.getInventorySize()
 
+--Todo Göra det mer modulärt genom att man hittar en fri slot och arbetar runt den istället för att alltid försöka att arbeta runt sista slott
+--Todo kolla ifall FindAGoodName returnar alla slot som den har skicka en ny bee till så man inte behöver använda hacken och söka igenom inv för bee som inte är analyzerade
 
-function getRefDrone(specie, destiSlotDrone, droneCount)--Todo
-	log("Grabbing a refrenseDrone, "..specie)
-	while RefTable[specie]["drone"].beeData.qty == 1 do
-		log("Need to breed more Drones")
-		creatRefrenseDrones(specie)
-	end
-	inv.pullItem("up", RefTable[specie]["drone"].beeData.slot, droneCount, destiSlotDrone)
-end
-function creatRefrenseDrones(specie)
-	log("Creating more Refrense Drones")
-	
-	
-	
-	getRefPair(specie, 1, 53, 54)
-	FindAGoodName(53, 54)
-	
-	
-	local droneSlot
-	local prinSlot
-	for i,v in pairs(inv.getAllStacks()) do
-		if not isAnalyzed(v) then
-			if isBeeOrPrincess(v) == 1 then--Prin
-				prinSlot = i
-			else--Drone
-				droneSlot = i
-			end
-		end
-	end
-	anaLyzeBee(prinSlot, inv)
-	anaLyzeBee(droneSlot, inv)
-	
-	RefTable[specie]["drone"].beeData.qty = RefTable[specie]["drone"].beeData.qty + inv.getStackInSlot(droneSlot).qty - 1
-	
-	returnRefPair(specie, prinSlot, droneSlot)
-end
 
-function log(text, bool)
+function log(text)
 	if not bool then
 		print(tostring(text))
 	end
 end
+
 
 function haveRecipe(targetSpecie)
 	if mutationTable[targetSpecie] == nil then
@@ -132,15 +100,85 @@ function fixBee(bee)
 		bee.beeInfo.inactive.species = fixBeeName(bee.beeInfo.inactive.species)
 	end
 end
-
-
-function getRefPair(specie, droneCount, destiSlotPrin, destiSlotDrone)
-	inv.pullItem(config.refChest, RefTable[specie]["prin"].beeData.slot, 1, destiSlotPrin)
-	inv.pullItem(config.refChest, RefTable[specie]["drone"].beeData.slot, droneCount, destiSlotDrone)
+function findFreeSlot()
+	local slot = 1
+	for invSlot, tab in pairs(inv.getAllStacks()) do
+		slot = invSlot + 1
+	end
+	return slot
 end
-function returnRefPair(specie, prinSlot, droneSlot)
-	inv.pushItem(config.refChest, prinSlot, 64, RefTable[specie]["prin"].beeData.slot)
-	inv.pushItem(config.refChest, droneSlot, 64, RefTable[specie]["drone"].beeData.slot)
+
+
+function clearApiary()-- Returns beeCount, beeSlot that was extracted
+	-- 1:Princess Slot
+	-- 2:Drone Slot
+	-- 3-9 Output Slots
+	-- 10-12 Frame Slots
+	log("Clearing Apiary")
+	local beeSlot = {}
+	local beeCount = 0
+	local inv = api.getAllStacks()
+	for slot = 3, 9 do
+		if inv[slot] then
+			if isBeeOrPrincess(inv[slot]) ~= 3 then
+				local invSlot = findFreeSlot()
+				if api.pushItem("up", slot, 64, invSlot) == 0 then
+					log("Error: MainChest is full")
+					log("Press [ENTER] When ready")
+					io.read()
+				else
+					beeSlot[invSlot] = true
+					beeCount = beeCount + 1
+				end
+			else
+				if api.pushItem(config.outputChest, slot) == 0 then
+					log("Error: OutputChest is full")
+					log("Press [ENTER] When ready")
+					io.read()
+				end
+			end
+		end
+	end
+	return beeCount, beeSlot
+end
+function clearAnalyzer()
+	log("Clearing Analyzer")
+	for i=1,12 do
+		inv.pullItem(config.analyzerDir, i)
+	end
+end
+function getRefDrone(specie, destiSlotDrone, droneCount)
+	local function creatRefrenseDrones(specie)
+		log("Creating more Refrense Drones")
+		
+		local prinSlot = findFreeSlot()
+		inv.pullItem(config.refChest, RefTable[specie]["prin"].beeData.slot, 1, prinSlot)
+		local droneSlot = findFreeSlot()
+		inv.pullItem(config.refChest, RefTable[specie]["drone"].beeData.slot, 1, droneSlot)
+
+		local ignore, slots = FindAGoodName(prinSlot, droneSlot)
+		for slot, ignore in pairs(slots) do
+			if isBeeOrPrincess(inv.getStackInSlot(slot)) == 1 then
+				prinSlot = slot
+			else
+				droneSlot = slot
+			end
+		end
+		
+		anaLyzeBee(prinSlot)
+		anaLyzeBee(droneSlot)
+		
+		RefTable[specie]["drone"].beeData.qty = RefTable[specie]["drone"].beeData.qty + inv.getStackInSlot(droneSlot).qty - 1
+		
+		inv.pushItem(config.refChest, prinSlot, 64, RefTable[specie]["prin"].beeData.slot)
+		inv.pushItem(config.refChest, droneSlot, 64, RefTable[specie]["drone"].beeData.slot)
+	end
+	
+	log("Grabbing a refrenseDrone, "..specie)
+	while RefTable[specie]["drone"].beeData.qty < droneCount do
+		creatRefrenseDrones(specie)
+	end
+	inv.pullItem(config.refChest, RefTable[specie]["drone"].beeData.slot, droneCount, destiSlotDrone)
 end
 function FindAGoodName(princessSlot, droneSlot)
 	local function waitForTheApi()
@@ -184,46 +222,121 @@ function anaLyzeBee(slot)
 		end
 	end
 end
-function catalogBees()
-	local function addBySpecies(beesBySpecies, bee)
-		if beesBySpecies[bee.beeInfo.active.species] == nil then
-			beesBySpecies[bee.beeInfo.active.species] = {bee}
-		else
-			table.insert(beesBySpecies[bee.beeInfo.active.species], bee)
+function sortBees()
+	local function ditchDrones()
+		log("Ditching obsolete Drones")
+		if config.DroneNumberDump > (inv.size - #inv.getAllStacks()) then
+			for slot, bee in pairs(inv.getAllStacks()) do
+				fixBee(bee)
+				if isBeeOrPrincess(bee) == 2 and -- The bee is a drone
+				HaveRefPair(bee.beeInfo.active.species) and -- Already have a refrense princess for the active species
+				HaveRefPair(bee.beeInfo.inactive.species) then -- Already have a refrense princess for the inactive species
+					while inv.pushItem(config.ditchDir,slot) == 0 do
+						log("DitchChest is full")
+						log("Fix it !!!!!!!!!!!!!!!!!")
+						io.read()
+					end
+				end
+			end
 		end
-		if bee.beeInfo.inactive.species ~= bee.beeInfo.active.species then
-			if beesBySpecies[bee.beeInfo.inactive.species] == nil then
-				beesBySpecies[bee.beeInfo.inactive.species] = {bee}
+	end
+	local function analyzeAllBees()
+		log("Analyzing Bees")
+		inv.condenseItems()
+		for i,v in pairs(inv.getAllStacks()) do
+			if not isAnalyzed(v) then
+				anaLyzeBee(i)
+			end
+		end
+		inv.condenseItems()
+	end
+	local function catalogBees()
+		local function addBySpecies(beesBySpecies, bee)
+			if beesBySpecies[bee.beeInfo.active.species] == nil then
+				beesBySpecies[bee.beeInfo.active.species] = {bee}
 			else
-				table.insert(beesBySpecies[bee.beeInfo.inactive.species], bee)
+				table.insert(beesBySpecies[bee.beeInfo.active.species], bee)
+			end
+			if bee.beeInfo.inactive.species ~= bee.beeInfo.active.species then
+				if beesBySpecies[bee.beeInfo.inactive.species] == nil then
+					beesBySpecies[bee.beeInfo.inactive.species] = {bee}
+				else
+					table.insert(beesBySpecies[bee.beeInfo.inactive.species], bee)
+				end
+			end
+		end
+		
+		catalog = {}
+		catalog.princessesBySpecies = {}
+		catalog.dronesBySpecies = {}
+			
+		for specie, beePair in pairs(RefTable) do	
+			addBySpecies(catalog.dronesBySpecies, beePair["drone"].beeData)
+		end
+		
+		for slot, bee in pairs(inv.getAllStacks()) do
+			fixBee(bee)
+			bee.slot = slot
+			
+			if isBeeOrPrincess(bee) == 1 then -- princess
+				addBySpecies(catalog.princessesBySpecies, bee)
+			else -- drones
+				bee.ref = false
+				addBySpecies(catalog.dronesBySpecies, bee)
 			end
 		end
 	end
 	
-	catalog = {}
-	catalog.princessesBySpecies = {}
-	catalog.dronesBySpecies = {}
-		
-	for specie, beePair in pairs(RefTable) do	
-		addBySpecies(catalog.dronesBySpecies, beePair["drone"].beeData)
-	end
 	
-	for slot, bee in pairs(inv.getAllStacks()) do
-		fixBee(bee)
-		bee.slot = slot
+	log("Sorting Bees")
+	analyzeAllBees()
+	ditchDrones()
+	catalogBees()
+end
+function cataLogRefChest()
+	RefTable = {}
+	log("Catalogging all refrenseBeePairs")
+	
+	local droneSlot = findFreeSlot()
+	local prinSlot
+	
+	for i=2, config.refChestSize, 2 do
+		if inv.pullItem(config.refChest, i, 64, droneSlot) == 0 then break end
+		if prinSlot == nil then prinSlot = findFreeSlot() end
 		
-		if isBeeOrPrincess(bee) == 1 then -- princess
-			addBySpecies(catalog.princessesBySpecies, bee)
-		else -- drones
-			bee.ref = false
-			addBySpecies(catalog.dronesBySpecies, bee)
-		end
+		inv.pullItem(config.refChest, i-1, 64, prinSlot)
+		
+		local prin = inv.getStackInSlot(prinSlot)
+		local drone = inv.getStackInSlot(droneSlot)
+		fixBee(prin)
+		fixBee(drone)
+		prin.slot = prinSlot
+		drone.slot = droneSlot
+		
+		addToRef(prin, drone)
 	end
 end
-
---Todo Göra det mer modulärt genom att man hittar en fri slot och arbetar runt den istället för att alltid försöka att arbeta runt sista slott
---Todo kolla ifall FindAGoodName returnar alla slot som den har skicka en ny bee till så man inte behöver använda hacken och söka igenom inv för bee som inte är analyzerade
-
+function addToRef(beePrin, beeDrone)
+	local specie = beePrin.beeInfo.active.species
+	local oldPrinSlot = beePrin.slot
+	local oldDroneSlot = beeDrone.slot
+	log("Adding "..specie.." to the refTable")
+	
+	beeList[specie] = true
+	RefTable[specie] = {}
+	RefTable[specie]["prin"] = {}
+	RefTable[specie]["drone"] = {}
+	
+	RefTable[specie]["prin"].beeData = beePrin
+	RefTable[specie]["prin"].beeData.slot = count(RefTable)*2-1
+	
+	RefTable[specie]["drone"].beeData = beeDrone
+	RefTable[specie]["drone"].beeData.slot = count(RefTable)*2
+	RefTable[specie]["drone"].beeData.ref = true
+	
+	inv.pushItem(config.refChest, oldPrinSlot, 64, RefTable[specie]["prin"].beeData.slot)
+	inv.pushItem(config.refChest, oldDroneSlot, 64, RefTable[specie]["drone"].beeData.slot)
+end
 
 
 function findPureBreeds(specie)
@@ -383,7 +496,7 @@ function getBreedingTable()
 		end
 	end
 	
-	local mutationTable = {}
+	mutationTable = {}
 	log("Sorting Breeding Table")
 	for id,v in pairs(api.getBeeBreedingData()) do
 	
@@ -396,7 +509,6 @@ function getBreedingTable()
 		beeList[v.result] = false
 		addToMuatationTable(mutationTable, v, id)
 	end
-	return mutationTable
 end
 function lookForNewRef()
 	local speciesToCheck = {}
@@ -435,126 +547,6 @@ function lookForNewRef()
 		end
 	end
 end
-function sortBees()
-	local function ditchDrones()
-		log("Ditching obsolete Drones")
-		if config.DroneNumberDump > (inv.size - #inv.getAllStacks()) then
-			for slot, bee in pairs(inv.getAllStacks()) do
-				fixBee(bee)
-				if isBeeOrPrincess(bee) == 2 and -- The bee is a drone
-				HaveRefPair(bee.beeInfo.active.species) and -- Already have a refrense princess for the active species
-				HaveRefPair(bee.beeInfo.inactive.species) then -- Already have a refrense princess for the inactive species
-					while inv.pushItem(config.ditchDir,slot) == 0 do
-						log("DitchChest is full")
-						log("Fix it !!!!!!!!!!!!!!!!!")
-						io.read()
-					end
-				end
-			end
-		end
-	end
-	local function analyzeAllBees()
-		log("Analyzing Bees")
-		inv.condenseItems()
-		for i,v in pairs(inv.getAllStacks()) do
-			if not isAnalyzed(v) then
-				anaLyzeBee(i)
-			end
-		end
-		inv.condenseItems()
-	end
-	
-	log("Sorting Bees")
-	analyzeAllBees()
-	ditchDrones()
-	catalogBees()
-end
-function clearApiary()--Returns beeCount that was extracted, 
-	-- 1:Princess Slot
-	-- 2:Drone Slot
-	-- 3-9 Output Slots
-	-- 10-12 Frame Slots
-	log("Clearing Apiary")
-	local beeCount = 0
-	local inv = api.getAllStacks()
-	for slot = 3, 9 do
-		if inv[slot] then
-			if isBeeOrPrincess(inv[slot]) ~= 3 then
-				if api.pushItem("up",slot) == 0 then
-					log("Error: MainChest is full")
-					log("Press [ENTER] When ready")
-					io.read()
-				else
-					beeCount = beeCount + 1
-				end
-			else
-				if api.pushItem(config.outputChest, slot) == 0 then
-					log("Error: OutputChest is full")
-					log("Press [ENTER] When ready")
-					io.read()
-				end
-			end
-		end
-	end
-	return beeCount
-end
-function clearAnalyzer()
-	log("Clearing Analyzer")
-	for i=1,12 do
-		inv.pullItem(config.analyzerDir, i)
-	end
-end
-function addToRef(beePrin, beeDrone)
-	local specie = beePrin.beeInfo.active.species
-	local oldPrinSlot = beePrin.slot
-	local oldDroneSlot = beeDrone.slot
-	log("Adding "..specie.." to the refTable")
-	
-	beeList[specie] = true
-	RefTable[specie] = {}
-	RefTable[specie]["prin"] = {}
-	RefTable[specie]["drone"] = {}
-	
-	RefTable[specie]["prin"].beeData = beePrin
-	RefTable[specie]["prin"].beeData.slot = count(RefTable)*2-1
-	
-	RefTable[specie]["drone"].beeData = beeDrone
-	RefTable[specie]["drone"].beeData.slot = count(RefTable)*2
-	RefTable[specie]["drone"].beeData.ref = true
-	
-	inv.pushItem(config.refChest, oldPrinSlot, 64, RefTable[specie]["prin"].beeData.slot)
-	inv.pushItem(config.refChest, oldDroneSlot, 64, RefTable[specie]["drone"].beeData.slot)
-end
-function cataLogRefChest()
-	RefTable = {}
-	log("Catalogging all refrenseBeePairs")
-	
-	if inv.getStackInSlot(27) ~= nil then
-		inv.swapStacks(27, inv.size)
-	end
-	if inv.getStackInSlot(26) ~= nil then
-		inv.swapStacks(26, inv.size-1)
-	end
-	
-	for i=2, config.refChestSize, 2 do
-		if inv.pullItem(config.refChest, i, 64, 27) == 0 then break end
-		inv.pullItem(config.refChest, i-1, 64, 26)
-		
-		local prin = inv.getStackInSlot(26)
-		local drone = inv.getStackInSlot(27)
-		fixBee(prin)
-		fixBee(drone)
-		prin.slot = 26
-		drone.slot = 27
-		
-		if not isPureBreed(prin) and isPureBreed(drone) then
-			log("Error: Current RefPair in slot:"..prin.slot..","..drone.slot.." is not purebreed")
-			io.read()
-			return
-		end
-		addToRef(prin, drone)
-	end
-end
 
 
 function reBreedQueen(specie)
@@ -568,21 +560,23 @@ function reBreedQueen(specie)
 	end
 	
 	while not isPureBreed(prin) and prin.beeInfo.active.species == specie do
-		if inv.getStackInSlot(27) ~= nil then
-			inv.swapStacks(27, inv.size)
-		end
-		getRefDrone(specie, 27, 1)
-		FindAGoodName(prinSlot, 27)
+		local droneSlot = findFreeSlot()
+		getRefDrone(specie, droneSlot, 1)
+		local ignore, tab = FindAGoodName(prin.slot, droneSlot)
 		
-		for i,v in pairs(inv.getAllStacks()) do
-			if not isAnalyzed(v) then
-				if isBeeOrPrincess(v) == 1 then --Prin
-					prinSlot = i
-				end
+		for tempSlot, v in pairs(tab) do
+			prin = inv.getStackInSlot(tempSlot)
+			prin.slot = tempSlot
+			
+			if isBeeOrPrincess(prin) == 1 then
+				break
 			end
 		end
 	end
 end
+
+--[[   ]]
+
 function ensurePureBreed(specie)
 	local pureCount = 0
 	while pureCount < config.EnsureCount15 do
@@ -663,7 +657,7 @@ function breedTarget(specificMutation)
 																 string.sub(table1.beePrin.beeInfo.inactive.species,0,3),
 																 string.sub(table1.beeDrone.beeInfo.active.species,0,3),
 																 string.sub(table1.beeDrone.beeInfo.inactive.species,0,3))
-																 ..tempVal, true)
+																 ..tempVal)
 			if tempVal > highest then
 				highestTable = {}
 				highest = tempVal
@@ -692,11 +686,9 @@ function breedTarget(specificMutation)
 		end
 		
 		if picked.beeDrone.ref then
-			if inv.getStackInSlot(27) ~= nil then
-				inv.swapStacks(27, inv.size)
-			end
-			getRefDrone(picked.beeDrone.beeInfo.active.species, 27, 1)
-			picked.beeDrone.slot = 27
+			local abc = findFreeSlot()
+			getRefDrone(picked.beeDrone.beeInfo.active.species, abc, 1)
+			picked.beeDrone.slot = abc
 		end
 			
 		FindAGoodName(picked.beePrin.slot, picked.beeDrone.slot)
@@ -805,12 +797,13 @@ end
 
 
 function main()
-	mutationTable = getBreedingTable()
+	getBreedingTable()
 	cataLogRefChest()
 	clearApiary()
 	clearAnalyzer()
 	sortBees()
 	lookForNewRef()
+	--[[
 	
 	log("Prep is finished")	
 	if tArgs[1] == nil then
@@ -829,9 +822,9 @@ function main()
 	else
 		log("Main Target is "..targetSpecies)
 	end
-		
+	
 	MainRec(targetSpecies)
+	]]
 end
-
 
 main()
