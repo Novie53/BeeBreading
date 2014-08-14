@@ -768,7 +768,8 @@ function MainRec(targetSpecies)
 	
 	if config.BreedEverythingInPath then
 		while count(stuffToBreed) ~= 0 do
-			for ignore, table1 in pairs(stuffToBreed) do
+			local tempTable = stuffToBreed
+			for ignore, table1 in pairs(tempTable) do
 				while count(catalog.dronesBySpecies) == 0 do
 					log(" -- Need more drones -- ")
 					log(" -- Press ENTER when ready -- ")
