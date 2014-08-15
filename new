@@ -490,7 +490,7 @@ function getBreedingTable()
 		mutTable[data.result][count].result = data.result
 		if #data["specialConditions"] > 0 then
 			mutTable[data.result][count].hasSpecialCondition = true
-			mutTable[data.result][count] = data.specialConditions
+			mutTable[data.result][count].specialData = data.specialConditions
 		else
 			mutTable[data.result][count].hasSpecialCondition = false
 		end
@@ -779,24 +779,27 @@ function MainRec(targetSpecies)
 	local stuffToBreed = getAllPossible(targetSpecies)
 	local completed = {}
 	
+	
 	if config.BreedEverythingInPath then
-		for ignore, table1 in pairs(stuffToBreed) do
-			while count(catalog.dronesBySpecies) == 0 do
-				log(" -- Need more drones -- ")
-				log(" -- Press ENTER when ready -- ")
-				io.read()
-				sortBees()
-			end
-			while count(catalog.princessesBySpecies) == 0 do
-				log(" -- Need more princesses -- ")
-				log(" -- Press ENTER when ready -- ")
-				io.read()
-				sortBees()
-			end
-				
-			if HaveRefPair(table1.beeOne) and HaveRefPair(table1.beeTwo) and completed[ignore] == nil then
-				breedTarget(table1)
-				completed[ignore] = true
+		while count(completed) ~= count(stuffToBreed) do
+			for ignore, table1 in pairs(stuffToBreed) do
+				while count(catalog.dronesBySpecies) == 0 do
+					log(" -- Need more drones -- ")
+					log(" -- Press ENTER when ready -- ")
+					io.read()
+					sortBees()
+				end
+				while count(catalog.princessesBySpecies) == 0 do
+					log(" -- Need more princesses -- ")
+					log(" -- Press ENTER when ready -- ")
+					io.read()
+					sortBees()
+				end
+					
+				if HaveRefPair(table1.beeOne) and HaveRefPair(table1.beeTwo) and completed[ignore] == nil then
+					breedTarget(table1)
+					completed[ignore] = true
+				end
 			end
 		end
 	else
@@ -804,6 +807,39 @@ function MainRec(targetSpecies)
 		io.read()
 	end
 end
+function breedAllSpecies()
+	local found = true
+	while found do
+		found = false
+		
+		while count(catalog.dronesBySpecies) == 0 do
+			log(" -- Need more drones -- ")
+			log(" -- Press ENTER when ready -- ")
+			io.read()
+			sortBees()
+		end
+		while count(catalog.princessesBySpecies) == 0 do
+			log(" -- Need more princesses -- ")
+			log(" -- Press ENTER when ready -- ")
+			io.read()
+			sortBees()
+		end
+		
+		for specie,table1 in pairs(mutationTable) do
+			for mutCount, specificMutation in pairs(table1) do
+				if not HaveRefPair(specie) then
+					if not (config.IgnoreCondition and specificMutation.hasSpecialCondition) then
+						if HaveRefPair(specificMutation.beeOne) and HaveRefPair(specificMutation.beeTwo) then
+							found = true
+							breedTarget(specificMutation)
+						end
+					end			
+				end
+			end
+		end
+	end
+end
+
 
 
 function main()
@@ -814,15 +850,17 @@ function main()
 	sortBees()
 	lookForNewRef()
 	
-	log("Prep is finished")	
+	log("Prep is finished")
+	
 	if tArgs[1] == nil then
 		log("Enter a species to aim for")
 		return
-	end	
-	
+	end
 	local targetSpecies = tArgs[1]:sub(1,1):upper()..tArgs[1]:sub(2):lower()
-
-	if beeList[targetSpecies] == nil then
+	
+	if targetSpecies == "All" then
+		breedAllSpecies()
+	elseif beeList[targetSpecies] == nil then
 		log("Could not find a species with the name: "..targetSpecies)
 		return
 	elseif HaveRefPair(targetSpecies) then
@@ -830,9 +868,8 @@ function main()
 		return	
 	else
 		log("Main Target is "..targetSpecies)
+		MainRec(targetSpecies)
 	end
-	
-	MainRec(targetSpecies)
 end
 
 main()
