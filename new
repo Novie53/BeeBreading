@@ -33,9 +33,6 @@ local mutationTable
 local catalog
 inv.size = inv.getInventorySize()
 
---Todo Göra det mer modulärt genom att man hittar en fri slot och arbetar runt den istället för att alltid försöka att arbeta runt sista slott
---Todo kolla ifall FindAGoodName returnar alla slot som den har skicka en ny bee till så man inte behöver använda hacken och söka igenom inv för bee som inte är analyzerade
-
 
 function log(text)
 	if not bool then
@@ -444,7 +441,8 @@ function scoreBee(bee)
 		["Both 1"] = 2
 	}
 	local effectTable = {
-		["None"] = 0
+		["None"] = 0,
+		["Beatific"] = 0
 	}
 	local flowerTable = {
 		["Flowers"] = 5,
@@ -580,10 +578,10 @@ function reBreedQueen(specie)
 		local ignore, tab = FindAGoodName(prin.slot, droneSlot)
 		
 		for tempSlot, v in pairs(tab) do
-			if isBeeOrPrincess(prin) == 1 then
+			if isBeeOrPrincess(inv.getStackInSlot(tempSlot)) == 1 then
 				anaLyzeBee(tempSlot)
-				prin.slot = tempSlot
 				prin = inv.getStackInSlot(tempSlot)
+				prin.slot = tempSlot
 				break
 			end
 		end
@@ -820,7 +818,7 @@ function main()
 	if tArgs[1] == nil then
 		log("Enter a species to aim for")
 		return
-	end
+	end	
 	
 	local targetSpecies = tArgs[1]:sub(1,1):upper()..tArgs[1]:sub(2):lower()
 
