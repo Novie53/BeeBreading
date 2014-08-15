@@ -5,7 +5,7 @@ local config = {
 	["refChestSize"] = 108,
 	["IgnoreCondition"] = true, 
 	["EnsureCount15"] = 5, --Must be atleast 1
-	["DroneNumberDump"] = 100,
+	["DroneNumberDump"] = 25,
 	["BreedEverythingInPath"] = true,
 	["outputChest"] = "east"
 }
@@ -779,28 +779,26 @@ function getAllPossible(targetSpecies)
 end
 function MainRec(targetSpecies)
 	local stuffToBreed = getAllPossible(targetSpecies)
+	local completed = {}
 	
 	if config.BreedEverythingInPath then
-		while count(stuffToBreed) ~= 0 do
-			local tempTable = stuffToBreed
-			for ignore, table1 in pairs(tempTable) do
-				while count(catalog.dronesBySpecies) == 0 do
-					log(" -- Need more drones -- ")
-					log(" -- Press ENTER when ready -- ")
-					io.read()
-					sortBees()
-				end
-				while count(catalog.princessesBySpecies) == 0 do
-					log(" -- Need more princesses -- ")
-					log(" -- Press ENTER when ready -- ")
-					io.read()
-					sortBees()
-				end
+		for ignore, table1 in pairs(stuffToBreed) do
+			while count(catalog.dronesBySpecies) == 0 do
+				log(" -- Need more drones -- ")
+				log(" -- Press ENTER when ready -- ")
+				io.read()
+				sortBees()
+			end
+			while count(catalog.princessesBySpecies) == 0 do
+				log(" -- Need more princesses -- ")
+				log(" -- Press ENTER when ready -- ")
+				io.read()
+				sortBees()
+			end
 				
-				if HaveRefPair(table1.beeOne) and HaveRefPair(table1.beeTwo) then
-					breedTarget(table1)
-					table.remove(stuffToBreed, ignore)
-				end
+			if HaveRefPair(table1.beeOne) and HaveRefPair(table1.beeTwo) and completed[ignore] == nil then
+				breedTarget(table1)
+				completed[ignore] = true
 			end
 		end
 	else
