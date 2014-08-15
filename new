@@ -552,29 +552,43 @@ end
 
 
 function reBreedQueen(specie)
-	log("Need to breed a queen to match the recipe, "..specie)
-	local prin
-	for i,v in pairs(catalog.princessesBySpecies) do
-		for a,d in pairs(v) do
-			prin = d
-			break
+	local function findBestQueen(specie)
+		if catalog.princessesBySpecies[specie] == nil then
+			for i,v in pairs(catalog.princessesBySpecies) do
+				for a,d in pairs(v) do
+					return d
+				end
+			end
+		else
+			local prinCount = count(catalog.princessesBySpecies[specie])
+			for i=1, prinCount do
+				if catalog.princessesBySpecies[specie][i].beeInfo.active.species == specie then 
+					return catalog.princessesBySpecies[specie][i]
+				elseif i == prinCount then
+					return catalog.princessesBySpecies[specie][1]
+				end			
+			end
 		end
 	end
+	log("Need to breed a queen to match the recipe, "..specie)
 	
-	while not isPureBreed(prin) and prin.beeInfo.active.species == specie do
+	repeat
+		sortBees()
+		local prin = findBestQueen(specie)
 		local droneSlot = findFreeSlot()
 		getRefDrone(specie, droneSlot, 1)
 		local ignore, tab = FindAGoodName(prin.slot, droneSlot)
 		
 		for tempSlot, v in pairs(tab) do
-			prin = inv.getStackInSlot(tempSlot)
-			prin.slot = tempSlot
-			
 			if isBeeOrPrincess(prin) == 1 then
+				anaLyzeBee(tempSlot)
+				prin.slot = tempSlot
+				prin = inv.getStackInSlot(tempSlot)
 				break
 			end
 		end
-	end
+	until isPureBreed(prin) and prin.beeInfo.active.species == specie
+	sortBees()
 end
 function ensurePureBreed(specie)
 	local pureCount = 0
